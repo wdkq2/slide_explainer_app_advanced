@@ -51,6 +51,7 @@ def _get_openai_key(args: argparse.Namespace) -> str:
     key = args.openai_key or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise SystemExit("OpenAI API 키가 필요합니다. --openai-key 또는 OPENAI_API_KEY 환경변수를 설정하세요.")
+    os.environ["OPENAI_API_KEY"] = key
     return key
 
 def _get_texts(pdf_path: str) -> List[str]:
@@ -137,13 +138,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
 
     # 4) Google Docs 기록
-    doc_url = google_docs_writer.write_to_google_doc(
-        google_creds=args.google_creds,
+    doc_id = google_docs_writer.create_document_from_summaries(
+        credentials_path=args.google_creds,
         title=args.title,
-        groups=groups,
-        per_page_summaries=summaries,
+        summaries=summaries,
         share_email=args.share_email,
     )
+    doc_url = f"https://docs.google.com/document/d/{doc_id}"
     print("Created:", doc_url)
     return 0
 
