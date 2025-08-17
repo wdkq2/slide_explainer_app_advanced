@@ -23,6 +23,7 @@ def compute_embeddings(
 ) -> np.ndarray:
     """Compute embeddings for a list of texts using the OpenAI API."""
     client = OpenAI(api_key=api_key)
+
     embeddings: List[List[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
@@ -42,6 +43,7 @@ def compute_embeddings(
         sorted_items = sorted(response.data, key=lambda x: x.index)
         for item in sorted_items:
             embeddings.append(list(item.embedding))
+
     return np.array(embeddings)
 
 
