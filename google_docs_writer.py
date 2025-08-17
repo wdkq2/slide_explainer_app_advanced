@@ -1,9 +1,11 @@
 """Create and populate Google Docs with generated slide summaries.
 
 This module handles authentication with Google APIs and writes
-summarised lecture content to a new Google Document. It supports
-service account credentials by default and falls back to user OAuth
-when a service account key file is not provided or cannot be used.
+summarised lecture content to a new Google Document. When a service
+account key JSON (``type": "service_account"``) is supplied it is used
+directly, so no browser-based OAuth flow is triggered. If another JSON
+credentials file is supplied (e.g. OAuth client secrets) the user will
+be prompted to grant access in a browser.
 
 For instructions on creating a service account and downloading the
 JSON key file, refer to the README.md in the project root.
@@ -14,7 +16,8 @@ from __future__ import annotations
 import logging
 from typing import Dict, Optional
 
-from google.auth.exceptions import DefaultCredentialsError
+import json
+
 from google.oauth2.service_account import Credentials as SACredentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -23,29 +26,22 @@ from googleapiclient.discovery import build
 def _load_credentials(credentials_path: Optional[str], scopes: list[str]):
     """Load Google API credentials.
 
-    Attempts to create service account credentials from a JSON key file. If
-    that fails or if ``credentials_path`` is None, initiates an OAuth flow for
-    installed applications. The latter requires user interaction during the
-    first run.
+    If ``credentials_path`` points to a service account JSON it will be used
+    directly. Otherwise an OAuth installed-app flow is initiated. Supplying a
+    service account JSON therefore allows non-interactive use on headless
+    environments like GitHub Codespaces.
     """
-    creds = None
-    if credentials_path:
-        try:
-            creds = SACredentials.from_service_account_file(
-                credentials_path, scopes=scopes
-            )
-        except Exception as exc:
-            logging.warning(
-                "Failed to load service account credentials from %s: %s",
-                credentials_path,
-                exc,
-            )
-    if not creds:
-        flow = InstalledAppFlow.from_client_secrets_file(
-            credentials_path, scopes=scopes
-        )
-        creds = flow.run_local_server(port=0)
-    return creds
+    if not credentials_path:
+        raise ValueError("A credentials JSON path must be provided")
+
+    with open(credentials_path, "r", encoding="utf-8") as f:
+        info = json.load(f)
+
+    if info.get("type") == "service_account":
+        return SACredentials.from_service_account_info(info, scopes=scopes)
+
+    flow = InstalledAppFlow.from_client_secrets_file(credentials_path, scopes=scopes)
+    return flow.run_local_server(port=0)
 
 
 def create_document_from_summaries(

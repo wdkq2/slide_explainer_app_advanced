@@ -43,7 +43,6 @@ def compute_embeddings(
         sorted_items = sorted(response.data, key=lambda x: x.index)
         for item in sorted_items:
             embeddings.append(list(item.embedding))
-
     return np.array(embeddings)
 
 
