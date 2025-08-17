@@ -51,6 +51,7 @@ def _get_openai_key(args: argparse.Namespace) -> str:
     key = args.openai_key or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise SystemExit("OpenAI API 키가 필요합니다. --openai-key 또는 OPENAI_API_KEY 환경변수를 설정하세요.")
+    os.environ["OPENAI_API_KEY"] = key
     return key
 
 def _get_texts(pdf_path: str) -> List[str]:
