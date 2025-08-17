@@ -1,17 +1,17 @@
 """Utilities for computing embeddings via the OpenAI API.
 
-The functions in this module encapsulate calls to the OpenAI Embedding
-endpoint and return NumPy arrays. They are separated out so that
-embedding computation can be reused across different processing steps.
+This module wraps calls to the OpenAI embedding endpoint and exposes
+helpers that return NumPy arrays for reuse across the application.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import List
 
 import numpy as np
-import openai
+from openai import OpenAI
 
 
 def compute_embeddings(
@@ -21,34 +21,17 @@ def compute_embeddings(
     model: str = "text-embedding-3-small",
     batch_size: int = 32,
 ) -> np.ndarray:
-    """Compute embeddings for a list of texts using the OpenAI API.
-
-    Parameters
-    ----------
-    texts : List[str]
-        The list of strings to embed.
-    api_key : str
-        Your OpenAI API key.
-    model : str, optional
-        The embedding model to use, by default ``"text-embedding-3-small"``.
-    batch_size : int, optional
-        Number of texts to send per API request. Adjust this according
-        to your rate limit and token quotas.
-
-    Returns
-    -------
-    np.ndarray
-        A 2D array of shape ``(len(texts), embedding_dim)`` where
-        ``embedding_dim`` depends on the chosen model.
-    """
-    openai.api_key = api_key
+    """Compute embeddings for a list of texts using the OpenAI API."""
+    client = OpenAI(api_key=api_key)
     embeddings: List[List[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
         try:
-            response = openai.Embedding.create(input=batch, model=model)
+            response = client.embeddings.create(model=model, input=batch)
         except Exception as exc:
-            logging.error("Error calling OpenAI Embedding API for batch starting at %s: %s", i, exc)
+            logging.error(
+                "Error calling OpenAI Embedding API for batch starting at %s: %s", i, exc
+            )
             # In case of failure, fill with zeros of appropriate dimension
             if embeddings:
                 dim = len(embeddings[0])
@@ -56,10 +39,21 @@ def compute_embeddings(
                 dim = 1536  # default dimension for most embedding models
             embeddings.extend([[0.0] * dim for _ in batch])
             continue
-        # The 'data' field is a list of dicts with 'embedding' and 'index'
-        # sorted by index; we need to order them by index to align with batch
-        # input order.
-        sorted_items = sorted(response.get("data", []), key=lambda x: x["index"])
+        sorted_items = sorted(response.data, key=lambda x: x.index)
         for item in sorted_items:
-            embeddings.append(item.get("embedding", []))
+            embeddings.append(list(item.embedding))
     return np.array(embeddings)
+
+
+def embed_texts(
+    texts: List[str],
+    *,
+    model: str = "text-embedding-3-small",
+    api_key: str | None = None,
+    batch_size: int = 32,
+) -> np.ndarray:
+    """Wrapper that reads the OpenAI API key from the environment if needed."""
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY environment variable is not set")
+    return compute_embeddings(texts, api_key=key, model=model, batch_size=batch_size)

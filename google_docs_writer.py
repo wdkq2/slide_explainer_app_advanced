@@ -20,28 +20,13 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 
-def _load_credentials(
-    credentials_path: Optional[str], scopes: list[str]
-):
+def _load_credentials(credentials_path: Optional[str], scopes: list[str]):
     """Load Google API credentials.
 
-    Attempts to create service account credentials from a JSON key
-    file. If that fails or if ``credentials_path`` is None, initiates
-    an OAuth flow for installed applications. The latter requires
-    user interaction during the first run.
-
-    Parameters
-    ----------
-    credentials_path : Optional[str]
-        Path to a service account JSON key file. If None or invalid,
-        OAuth flow will be used.
-    scopes : list[str]
-        List of OAuth scopes required for Google Docs access.
-
-    Returns
-    -------
-    google.auth.credentials.Credentials
-        Authorised credentials for Google APIs.
+    Attempts to create service account credentials from a JSON key file. If
+    that fails or if ``credentials_path`` is None, initiates an OAuth flow for
+    installed applications. The latter requires user interaction during the
+    first run.
     """
     creds = None
     if credentials_path:
@@ -56,8 +41,9 @@ def _load_credentials(
                 exc,
             )
     if not creds:
-        # Fallback to user OAuth flow. This will open a browser on first run.
-        flow = InstalledAppFlow.from_client_secrets_file(credentials_path, scopes=scopes)
+        flow = InstalledAppFlow.from_client_secrets_file(
+            credentials_path, scopes=scopes
+        )
         creds = flow.run_local_server(port=0)
     return creds
 
@@ -69,27 +55,12 @@ def create_document_from_summaries(
     *,
     share_email: Optional[str] = None,
 ) -> str:
-    """Create a Google Doc and populate it with slide summaries.
+    """Create a Google Doc and populate it with slide summaries."""
 
-    Parameters
-    ----------
-    credentials_path : Optional[str]
-        Path to a Google service account JSON key file or OAuth
-        client secrets. If None, the default credentials will be used.
-    title : str
-        Title of the document to create.
-    summaries : Dict[int, str]
-        Mapping from page indices to their summaries.
-    share_email : Optional[str], optional
-        If provided and a service account is used, this email will be
-        granted edit access to the document. Ignored for user OAuth.
-
-    Returns
-    -------
-    str
-        The document ID of the created Google Doc.
-    """
-    scopes = ["https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/drive"]
+    scopes = [
+        "https://www.googleapis.com/auth/documents",
+        "https://www.googleapis.com/auth/drive",
+    ]
     creds = _load_credentials(credentials_path, scopes)
     docs_service = build("docs", "v1", credentials=creds)
     drive_service = build("drive", "v3", credentials=creds)
@@ -130,4 +101,6 @@ def create_document_from_summaries(
             logging.warning(
                 "Failed to share document %s with %s: %s", doc_id, share_email, exc
             )
+
     return doc_id
+

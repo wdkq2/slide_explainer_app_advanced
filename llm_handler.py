@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List
 
-import openai
+from openai import OpenAI
 
 
 def summarize_groups(
@@ -49,7 +49,7 @@ def summarize_groups(
     Dict[int, str]
         A mapping from page index to the generated summary string.
     """
-    openai.api_key = api_key
+    client = OpenAI(api_key=api_key)
     summaries: Dict[int, str] = {}
 
     # System prompt instructing the model to summarise slides in Korean
@@ -101,12 +101,12 @@ def summarize_groups(
                     }
                 )
             try:
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model=model,
                     messages=messages,
                     temperature=temperature,
                 )
-                summary = response["choices"][0]["message"]["content"].strip()
+                summary = response.choices[0].message.content.strip()
             except Exception as exc:
                 logging.error(
                     "Error during OpenAI API call for page %s: %s", idx, exc
