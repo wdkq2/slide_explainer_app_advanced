@@ -11,7 +11,7 @@ import os
 from typing import List
 
 import numpy as np
-import openai
+from openai import OpenAI
 
 
 def compute_embeddings(
@@ -22,14 +22,17 @@ def compute_embeddings(
     batch_size: int = 32,
 ) -> np.ndarray:
     """Compute embeddings for a list of texts using the OpenAI API."""
-    openai.api_key = api_key
+    client = OpenAI(api_key=api_key)
+
     embeddings: List[List[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
         try:
-            response = openai.Embedding.create(input=batch, model=model)
+            response = client.embeddings.create(model=model, input=batch)
         except Exception as exc:
-            logging.error("Error calling OpenAI Embedding API for batch starting at %s: %s", i, exc)
+            logging.error(
+                "Error calling OpenAI Embedding API for batch starting at %s: %s", i, exc
+            )
             # In case of failure, fill with zeros of appropriate dimension
             if embeddings:
                 dim = len(embeddings[0])
@@ -37,9 +40,10 @@ def compute_embeddings(
                 dim = 1536  # default dimension for most embedding models
             embeddings.extend([[0.0] * dim for _ in batch])
             continue
-        sorted_items = sorted(response.get("data", []), key=lambda x: x["index"])
+        sorted_items = sorted(response.data, key=lambda x: x.index)
         for item in sorted_items:
-            embeddings.append(item.get("embedding", []))
+            embeddings.append(list(item.embedding))
+
     return np.array(embeddings)
 
 
