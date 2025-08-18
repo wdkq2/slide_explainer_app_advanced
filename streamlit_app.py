@@ -82,7 +82,7 @@ if generate and uploaded_pdf and api_key:
                     model="gpt-5-mini",
                     language="ko",
                     max_completion_tokens=2200,
-                    temperature=0.2,
+
                 )
                 pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
                 for match in pattern.finditer(explanation + "\n"):
@@ -98,7 +98,7 @@ if generate and uploaded_pdf and api_key:
             texts=texts,
             groups=groups,
             model="gpt-5-mini",
-            temperature=0.2,
+            # Use the model's default temperature
         )
         slides = [(i + 1, summaries[i]) for i in sorted(summaries.keys())]
         section_outputs.append(("Summary", slides))

@@ -23,7 +23,7 @@ def summarize_groups(
     groups: List[List[int]],
     *,
     model: str = "gpt-5-mini-2025-08-07",
-    temperature: float = 0.3,
+    temperature: float | None = None,
 ) -> Dict[int, str]:
     """Generate summaries for pages of a PDF grouped by context.
 
@@ -40,9 +40,10 @@ def summarize_groups(
     model : str, optional
         OpenAI model name to use for summarisation, by default
         ``"gpt-5-mini-2025-08-07"``.
-    temperature : float, optional
-        Sampling temperature for the model. Lower values make the
-        output more deterministic, by default ``0.3``.
+    temperature : float | None, optional
+        Sampling temperature for the model. If ``None`` the model's
+        default temperature is used. Some models only support the
+        default temperature.
 
     Returns
     -------
@@ -101,11 +102,10 @@ def summarize_groups(
                     }
                 )
             try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                )
+                params = {"model": model, "messages": messages}
+                if temperature is not None:
+                    params["temperature"] = temperature
+                response = client.chat.completions.create(**params)
                 summary = response.choices[0].message.content.strip()
             except Exception as exc:
                 logging.error(
@@ -124,7 +124,8 @@ def explain_section(
     model: str = "gpt-5-mini-2025-08-07",
     language: str = "ko",
     max_completion_tokens: int = 2200,
-    temperature: float = 0.2,
+    temperature: float | None = None,
+
 ) -> str:
     """Return detailed explanations for slides within a section."""
 
@@ -180,12 +181,15 @@ def explain_section(
     ]
 
     def _call() -> str:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_completion_tokens=max_completion_tokens,
-            temperature=temperature,
-        )
+        params = {
+            "model": model,
+            "messages": messages,
+            "max_completion_tokens": max_completion_tokens,
+        }
+        if temperature is not None:
+            params["temperature"] = temperature
+        resp = client.chat.completions.create(**params)
+
         return resp.choices[0].message.content.strip()
 
     import re
