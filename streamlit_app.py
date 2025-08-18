@@ -82,6 +82,7 @@ if generate and uploaded_pdf and api_key:
                     model="gpt-5-mini",
                     language="ko",
                     max_completion_tokens=2200,
+
                 )
                 pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
                 for match in pattern.finditer(explanation + "\n"):

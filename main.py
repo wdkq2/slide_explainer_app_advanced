@@ -23,6 +23,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--section-size-limit", type=int, default=8)
     parser.add_argument("--model", default="gpt-5-mini")
     parser.add_argument("--temperature", type=float, default=None)
+
     parser.add_argument(
         "--max-completion-tokens",
         "--max-tokens",

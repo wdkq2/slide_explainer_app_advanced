@@ -125,6 +125,7 @@ def explain_section(
     language: str = "ko",
     max_completion_tokens: int = 2200,
     temperature: float | None = None,
+
 ) -> str:
     """Return detailed explanations for slides within a section."""
 
@@ -188,6 +189,7 @@ def explain_section(
         if temperature is not None:
             params["temperature"] = temperature
         resp = client.chat.completions.create(**params)
+
         return resp.choices[0].message.content.strip()
 
     import re
