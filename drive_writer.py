@@ -10,6 +10,7 @@ The function still targets the Colab/Google Drive workflow and keeps a
 minimal dependency surface so it can run in the restricted environment
 provided by the tests.  The Google Drive must be mounted by the caller
 before invoking :func:`save_document_to_drive`.
+
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ def save_document_to_drive(
     # executed from a non-interactive Python process (e.g. ``python -m``) where the
     # Colab helper cannot prompt for authentication.  The caller is expected to
     # mount the drive in an interactive cell beforehand.
+
     os.makedirs(drive_dir, exist_ok=True)
 
     file_path = os.path.join(drive_dir, f"{title}.txt")
