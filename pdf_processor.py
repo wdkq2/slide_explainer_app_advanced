@@ -105,7 +105,6 @@ def extract_page_text_with_layout(pdf_path: str, page_idx: int) -> Dict[str, obj
             texts.append(line_text)
             # crude heuristic: top quarter of page or large font
             if y0 < page_height * 0.25 or size > 16:
-
                 title_candidates.append(line_text.strip())
 
     body_text = "\n".join(texts)
@@ -163,10 +162,16 @@ def infer_section_title(page_meta_list: List[Dict[str, object]]) -> str:
         text = page_meta_list[0].get("body_text", "")
         return text.strip().splitlines()[0][:50] if text else "Untitled Section"
 
-    # Use rapidfuzz to group similar titles
-    best, score = rf_process.extractOne(candidates[0], candidates)
-    if best and score > 60:
-        return best
+    # Use rapidfuzz to group similar titles. ``extractOne`` returns a tuple
+    # of ``(match, score, index)``. Previously this unpacked only two values
+    # which raised ``ValueError: too many values to unpack`` at runtime.
+    # We properly handle the return structure and guard against ``None``.
+    match = rf_process.extractOne(candidates[0], candidates)
+    if match:
+        best, score, _ = match
+        if best and score > 60:
+            return best
+
     return candidates[0]
 
 
