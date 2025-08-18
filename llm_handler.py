@@ -123,7 +123,7 @@ def explain_section(
     *,
     model: str = "gpt-5-mini-2025-08-07",
     language: str = "ko",
-    max_tokens: int = 2200,
+    max_completion_tokens: int = 2200,
     temperature: float = 0.2,
 ) -> str:
     """Return detailed explanations for slides within a section."""
@@ -183,7 +183,7 @@ def explain_section(
         resp = client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_completion_tokens,
             temperature=temperature,
         )
         return resp.choices[0].message.content.strip()
