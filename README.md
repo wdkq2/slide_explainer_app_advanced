@@ -49,7 +49,7 @@ Upload a PDF and provide your OpenAI API key in the sidebar. Once processing com
 
 ## Usage
 
-Optional CLI flags such as `--mode`, `--model`, and `--temperature` can be supplied as needed. Note that some OpenAI models only support the default temperature and will ignore or reject other values.
+Optional CLI flags such as `--mode`, `--model`, and `--temperature` can be supplied as needed. Some OpenAI models (for example, `gpt-5-mini`) only accept the default temperature of `1`. If you request an unsupported value, the application now falls back to the model's default to avoid API errors.
 
 ### Important Notes
 
