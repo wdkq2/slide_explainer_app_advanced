@@ -22,8 +22,14 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lang", default="ko")
     parser.add_argument("--section-size-limit", type=int, default=8)
     parser.add_argument("--model", default="gpt-5-mini")
-    parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--max-tokens", type=int, default=2200)
+    parser.add_argument("--temperature", type=float, default=None)
+    parser.add_argument(
+        "--max-completion-tokens",
+        "--max-tokens",
+        dest="max_completion_tokens",
+        type=int,
+        default=2200,
+    )
 
     parser.add_argument("--semantic-weight", type=float, default=0.4)
     parser.add_argument("--visual-weight", type=float, default=0.2)
@@ -103,7 +109,7 @@ def main(argv: List[str] | None = None) -> int:
                     section.title,
                     model=args.model,
                     language=args.lang,
-                    max_tokens=args.max_tokens,
+                    max_completion_tokens=args.max_completion_tokens,
                     temperature=args.temperature,
                 )
                 import re
