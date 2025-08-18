@@ -4,7 +4,7 @@ import argparse
 import os
 from typing import Optional, List
 
-from . import pdf_processor, llm_handler, google_docs_writer
+from . import pdf_processor, llm_handler
 from .auto_split import (
     AutoSegConfig, compute_boundary_scores, auto_choose_boundaries,
     choose_fixed_boundaries, segments_from_cuts
@@ -12,17 +12,15 @@ from .auto_split import (
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Advanced summarise lecture slides and save to Google Docs"
+        description="Advanced summarise lecture slides and output as text"
     )
     # 필수
     parser.add_argument("--pdf", required=True, help="Path to the PDF file containing lecture slides")
-    parser.add_argument("--title", default="Lecture Summary (Advanced)", help="Title for the generated Google Document")
+    parser.add_argument("--title", default="Lecture Summary (Advanced)", help="Title for the generated summary output")
 
     # 키/인증
     parser.add_argument("--openai-key", required=False,
                         help="OpenAI API key. If omitted, uses the OPENAI_API_KEY environment variable.")
-    parser.add_argument("--google-creds", required=False,
-                        help="Path to Google service account key or OAuth client secrets JSON")
 
     # 자동/수동 분할 옵션
     parser.add_argument("--groups", default="auto",
@@ -43,14 +41,15 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                         help="OpenAI model to use for summarisation")
     parser.add_argument("--temperature", type=float, default=0.3,
                         help="Sampling temperature for the OpenAI model")
-    parser.add_argument("--share-email", default=None,
-                        help="Email to share the resulting document with (service account only)")
+    parser.add_argument("--out", default=None,
+                        help="Optional path to save the summaries as a text file")
     return parser.parse_args(argv)
 
 def _get_openai_key(args: argparse.Namespace) -> str:
     key = args.openai_key or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise SystemExit("OpenAI API 키가 필요합니다. --openai-key 또는 OPENAI_API_KEY 환경변수를 설정하세요.")
+    os.environ["OPENAI_API_KEY"] = key
     return key
 
 def _get_texts(pdf_path: str) -> List[str]:
@@ -136,15 +135,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         temperature=args.temperature,
     )
 
-    # 4) Google Docs 기록
-    doc_url = google_docs_writer.write_to_google_doc(
-        google_creds=args.google_creds,
-        title=args.title,
-        groups=groups,
-        per_page_summaries=summaries,
-        share_email=args.share_email,
-    )
-    print("Created:", doc_url)
+    # 4) 출력 및 선택적 파일 저장
+    lines = [args.title, ""]
+    for idx in range(N):
+        summary = summaries.get(idx, "(요약을 생성하는 데 실패했습니다.)")
+        lines.append(f"페이지 {idx + 1} 요약:\n{summary}\n")
+    output_text = "\n".join(lines)
+    print(output_text)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(output_text)
+        print(f"Summaries saved to {args.out}")
     return 0
 
 if __name__ == "__main__":

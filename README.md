@@ -5,7 +5,7 @@ summarisation tool. The original project grouped slides by simple
 differences in text length; this advanced version uses a hybrid
 approach that combines semantic, visual, and structural cues to
 identify topic boundaries and detect near‑duplicate slides. It then
-summarises the unique pages and writes the results to Google Docs.
+summarises the unique pages and prints the results or saves them to a text file.
 
 ## Key Improvements
 
@@ -38,13 +38,12 @@ Then run the advanced summariser:
 python -m slide_explainer_app_advanced.main \
   --pdf /path/to/lecture_slides.pdf \
   --openai-key YOUR_OPENAI_API_KEY \
-  --google-creds /path/to/google_credentials.json \
   --title "Advanced Fluid Mechanics Summary" \
   --groups 2 \
   --target-ratio 0.53 \
   --model gpt-3.5-turbo \
   --temperature 0.3 \
-  --share-email your.email@example.com
+  --out summary.txt
 ```
 
 ### Important Notes
@@ -63,8 +62,7 @@ python -m slide_explainer_app_advanced.main \
   ``pdf_processor.py``. This may be necessary to fine‑tune the
   behaviour for different types of slides.
 * **Duplicate slides:** Pages flagged as duplicates will have the
-  summary of their canonical page followed by ``(중복 슬라이드)`` in
-  the final document.
+  summary of their canonical page followed by ``(중복 슬라이드)``.
 
-For additional details about configuring Google and OpenAI
-authentication, refer to the README in the parent project folder.
+For additional details about configuring OpenAI authentication,
+refer to the README in the parent project folder.
