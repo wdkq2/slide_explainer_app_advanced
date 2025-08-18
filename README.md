@@ -35,7 +35,8 @@ summarises the unique pages and writes the results to a document in Google Drive
    !git clone https://github.com/your-account/slide_explainer_app_advanced.git
    %cd slide_explainer_app_advanced
    !pip install -r requirements.txt
-   !apt-get install -y poppler-utils
+   !apt-get install -y poppler-utils \
+       tesseract-ocr tesseract-ocr-kor
    ```
 3. **OpenAI API 키 설정**
    ```python

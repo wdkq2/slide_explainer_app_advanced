@@ -12,6 +12,7 @@ from typing import List
 
 import numpy as np
 from openai import OpenAI
+from typing import Iterable
 
 
 def compute_embeddings(
@@ -58,3 +59,66 @@ def embed_texts(
     if not key:
         raise RuntimeError("OPENAI_API_KEY environment variable is not set")
     return compute_embeddings(texts, api_key=key, model=model, batch_size=batch_size)
+
+
+def embed_pages_text(
+    pages_text: Iterable[str],
+    *,
+    model: str = "text-embedding-3-small",
+    api_key: str | None = None,
+    batch_size: int = 32,
+    max_retries: int = 3,
+) -> np.ndarray:
+    """Embed a sequence of page texts with basic retry logic.
+
+    Parameters
+    ----------
+    pages_text:
+        Iterable of strings, one per page.
+    model:
+        Embedding model name.
+    api_key:
+        Optional API key; falls back to ``OPENAI_API_KEY`` env var.
+    batch_size:
+        Number of items per API request.
+    max_retries:
+        Number of times to retry a failed request.
+    """
+
+    key = api_key or os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY environment variable is not set")
+
+    texts = list(pages_text)
+    logging.info("Embedding %d pages; this may incur API costs", len(texts))
+
+    client = OpenAI(api_key=key)
+    vectors: list[list[float]] = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i : i + batch_size]
+        attempt = 0
+        while True:
+            try:
+                resp = client.embeddings.create(model=model, input=batch)
+                sorted_items = sorted(resp.data, key=lambda x: x.index)
+                for item in sorted_items:
+                    vectors.append(list(item.embedding))
+                break
+            except Exception as exc:  # pragma: no cover - network errors
+                attempt += 1
+                logging.warning("Embedding batch starting %s failed: %s", i, exc)
+                if attempt >= max_retries:
+                    dim = len(vectors[0]) if vectors else 1536
+                    vectors.extend([[0.0] * dim for _ in batch])
+                    break
+    return np.array(vectors)
+
+
+def cosine_similarity_matrix(embeddings: np.ndarray) -> np.ndarray:
+    """Return a cosine similarity matrix for the given embeddings."""
+    if embeddings.size == 0:
+        return np.zeros((0, 0))
+    norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norm[norm == 0] = 1.0
+    normalised = embeddings / norm
+    return normalised @ normalised.T
