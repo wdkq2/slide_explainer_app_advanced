@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Tuple
 
-from openai import OpenAI
+from openai import OpenAI, BadRequestError
 
 
 def summarize_groups(
@@ -101,17 +101,37 @@ def summarize_groups(
                         ),
                     }
                 )
+            params = {"model": model, "messages": messages}
+            if temperature is not None:
+                params["temperature"] = temperature
             try:
-                params = {"model": model, "messages": messages}
-                if temperature is not None:
-                    params["temperature"] = temperature
                 response = client.chat.completions.create(**params)
-                summary = response.choices[0].message.content.strip()
+            except BadRequestError as exc:
+                if "temperature" in str(exc) and temperature is not None:
+                    logging.warning(
+                        "Model %s does not support temperature %.2f; using default",
+                        model,
+                        temperature,
+                    )
+                    params.pop("temperature", None)
+                    response = client.chat.completions.create(**params)
+                else:
+                    logging.error(
+                        "Error during OpenAI API call for page %s: %s", idx, exc
+                    )
+                    summary = "(요약을 생성하는 데 실패했습니다.)"
+                    summaries[idx] = summary
+                    previous_summaries.append(summary)
+                    continue
             except Exception as exc:
                 logging.error(
                     "Error during OpenAI API call for page %s: %s", idx, exc
                 )
                 summary = "(요약을 생성하는 데 실패했습니다.)"
+                summaries[idx] = summary
+                previous_summaries.append(summary)
+                continue
+            summary = response.choices[0].message.content.strip()
             summaries[idx] = summary
             previous_summaries.append(summary)
     return summaries
@@ -188,7 +208,19 @@ def explain_section(
         }
         if temperature is not None:
             params["temperature"] = temperature
-        resp = client.chat.completions.create(**params)
+        try:
+            resp = client.chat.completions.create(**params)
+        except BadRequestError as exc:
+            if "temperature" in str(exc) and temperature is not None:
+                logging.warning(
+                    "Model %s does not support temperature %.2f; using default",
+                    model,
+                    temperature,
+                )
+                params.pop("temperature", None)
+                resp = client.chat.completions.create(**params)
+            else:
+                raise
 
         return resp.choices[0].message.content.strip()
 
