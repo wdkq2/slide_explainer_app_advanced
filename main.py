@@ -31,6 +31,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         default=2200,
     )
 
+
     parser.add_argument("--semantic-weight", type=float, default=0.4)
     parser.add_argument("--visual-weight", type=float, default=0.2)
     parser.add_argument("--title-weight", type=float, default=0.4)
