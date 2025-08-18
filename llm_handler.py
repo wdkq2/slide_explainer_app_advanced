@@ -12,7 +12,7 @@ To use this module you must supply a valid OpenAI API key. See
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from openai import OpenAI
 
@@ -115,3 +115,64 @@ def summarize_groups(
             summaries[idx] = summary
             previous_summaries.append(summary)
     return summaries
+
+
+def explain_section(
+    items: List[Tuple[int, str]],
+    section_title: str,
+    *,
+    model: str = "gpt-4o",
+    language: str = "ko",
+    min_sentences_per_slide: int = 5,
+    max_tokens: int = 2200,
+    temperature: float = 0.2,
+) -> str:
+    """Return detailed explanations for slides within a section."""
+
+    client = OpenAI()
+
+    system_prompt = (
+        "당신은 대학 3학년 공대 과목의 조교입니다. 처음 보는 학생에게도 "
+        "맥락적으로 자세한 설명을 제공하세요. 한 줄 요약 금지." 
+        f"각 슬라이드는 최소 {min_sentences_per_slide}문장으로 설명하세요."
+    )
+
+    user_lines = [f"섹션 개요: {section_title}"]
+    for page, text in items:
+        user_lines.append(f"페이지 {page}: {text}")
+    user_content = "\n".join(user_lines)
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": (
+                user_content
+                + "\n\n슬라이드별로 '페이지 N:' 형식으로 자세히 설명하세요. "
+                "이미 설명한 내용을 반복하지 말고 다음 슬라이드 내용을 선점하지 마세요."
+            ),
+        },
+    ]
+
+    def _call() -> str:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return resp.choices[0].message.content.strip()
+
+    import re
+
+    out = _call()
+    for _ in range(1):
+        ok = True
+        for page, _ in items:
+            if not re.search(rf"^페이지 {page}:", out, re.MULTILINE):
+                ok = False
+                break
+        if ok:
+            break
+        out = _call()
+    return out

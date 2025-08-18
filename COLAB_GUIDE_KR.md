@@ -31,7 +31,8 @@
    ```
 2. `pdf2image` 사용 시 Poppler가 필요하므로 아래 명령도 실행합니다.
    ```bash
-   !apt-get install -y poppler-utils
+   !apt-get install -y poppler-utils \
+       tesseract-ocr tesseract-ocr-kor
    ```
 
 ## E. OpenAI API 키 설정
