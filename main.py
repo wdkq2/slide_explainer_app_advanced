@@ -4,7 +4,7 @@ import argparse
 import os
 from typing import Optional, List
 
-from . import pdf_processor, llm_handler, google_docs_writer
+from . import pdf_processor, llm_handler, drive_writer
 from .auto_split import (
     AutoSegConfig, compute_boundary_scores, auto_choose_boundaries,
     choose_fixed_boundaries, segments_from_cuts
@@ -12,17 +12,17 @@ from .auto_split import (
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Advanced summarise lecture slides and save to Google Docs"
+        description="Advanced summarise lecture slides and save to Google Drive"
     )
     # 필수
     parser.add_argument("--pdf", required=True, help="Path to the PDF file containing lecture slides")
-    parser.add_argument("--title", default="Lecture Summary (Advanced)", help="Title for the generated Google Document")
+    parser.add_argument("--title", default="Lecture Summary (Advanced)", help="Title for the saved document")
 
     # 키/인증
     parser.add_argument("--openai-key", required=False,
                         help="OpenAI API key. If omitted, uses the OPENAI_API_KEY environment variable.")
-    parser.add_argument("--google-creds", required=False,
-                        help="Path to Google service account key or OAuth client secrets JSON")
+    parser.add_argument("--drive-dir", default="/content/drive/MyDrive",
+                        help="Directory in Google Drive to save the summary file")
 
     # 자동/수동 분할 옵션
     parser.add_argument("--groups", default="auto",
@@ -38,13 +38,11 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--embedding-model", default="text-embedding-3-small",
                         help="OpenAI embedding model for semantic analysis")
 
-    # LLM/공유
+    # LLM 설정
     parser.add_argument("--model", default="gpt-3.5-turbo",
                         help="OpenAI model to use for summarisation")
     parser.add_argument("--temperature", type=float, default=0.3,
                         help="Sampling temperature for the OpenAI model")
-    parser.add_argument("--share-email", default=None,
-                        help="Email to share the resulting document with (service account only)")
     return parser.parse_args(argv)
 
 def _get_openai_key(args: argparse.Namespace) -> str:
@@ -137,15 +135,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         temperature=args.temperature,
     )
 
-    # 4) Google Docs 기록
-    doc_id = google_docs_writer.create_document_from_summaries(
-        credentials_path=args.google_creds,
+    # 4) Google Drive에 저장
+    file_path = drive_writer.save_document_to_drive(
         title=args.title,
         summaries=summaries,
-        share_email=args.share_email,
+        drive_dir=args.drive_dir,
     )
-    doc_url = f"https://docs.google.com/document/d/{doc_id}"
-    print("Created:", doc_url)
+    print("Saved:", file_path)
     return 0
 
 if __name__ == "__main__":
