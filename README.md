@@ -5,7 +5,7 @@ summarisation tool. The original project grouped slides by simple
 differences in text length; this advanced version uses a hybrid
 approach that combines semantic, visual, and structural cues to
 identify topic boundaries and detect near‑duplicate slides. It then
-summarises the unique pages and writes the results to Google Docs.
+summarises the unique pages and writes the results to a document in Google Drive when run in Google Colab.
 
 ## Key Improvements
 
@@ -23,29 +23,57 @@ summarises the unique pages and writes the results to Google Docs.
 * **Target Ratio Splitting:** When splitting into two or more groups,
   a target ratio can be specified to bias where the cut should occur
   (e.g. 0.55 for a 20/18 split in a 38‑page document).
+## Quickstart (Google Colab)
+
+1. **Google Drive 마운트**
+   ```python
+   from google.colab import drive
+   drive.mount('/content/drive')
+   ```
+2. **저장소 클론 및 의존성 설치**
+   ```bash
+   !git clone https://github.com/your-account/slide_explainer_app_advanced.git
+   %cd slide_explainer_app_advanced
+   !pip install -r requirements.txt
+   !apt-get install -y poppler-utils
+   ```
+3. **OpenAI API 키 설정**
+   ```python
+   import os
+   os.environ['OPENAI_API_KEY'] = 'YOUR_OPENAI_API_KEY'
+   ```
+4. **요약 실행**
+   ```bash
+   !python -m slide_explainer_app_advanced.main \
+     --pdf /content/drive/MyDrive/lecture.pdf \
+     --title "Lecture Summary" \
+     --openai-key $OPENAI_API_KEY \
+     --drive-dir "/content/drive/MyDrive/slide_summary"
+   ```
+   결과 텍스트 파일은 지정한 `drive_dir` 경로에 저장됩니다.
+
+자세한 A‑Z 안내는 [COLAB_GUIDE_KR.md](COLAB_GUIDE_KR.md)를 참고하세요.
 
 ## Usage
 
-Install dependencies (preferably in a virtual environment):
+For local execution, install dependencies (preferably in a virtual environment):
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Then run the advanced summariser:
+Then run the summariser:
 
 ```bash
 python -m slide_explainer_app_advanced.main \
   --pdf /path/to/lecture_slides.pdf \
   --openai-key YOUR_OPENAI_API_KEY \
-  --google-creds /path/to/google_credentials.json \
   --title "Advanced Fluid Mechanics Summary" \
-  --groups 2 \
-  --target-ratio 0.53 \
-  --model gpt-3.5-turbo \
-  --temperature 0.3 \
-  --share-email your.email@example.com
+  --drive-dir /path/to/output_dir
 ```
+
+Optional flags such as `--groups`, `--target-ratio`, `--model`, and `--temperature`
+can be supplied as needed. Groups default to `auto` when unspecified.
 
 ### Important Notes
 
@@ -66,5 +94,4 @@ python -m slide_explainer_app_advanced.main \
   summary of their canonical page followed by ``(중복 슬라이드)`` in
   the final document.
 
-For additional details about configuring Google and OpenAI
-authentication, refer to the README in the parent project folder.
+For additional details about configuring OpenAI authentication, refer to the README in the parent project folder.
