@@ -8,7 +8,9 @@ ranges for each section.  Section headers are marked in bold markdown
 
 The function still targets the Colab/Google Drive workflow and keeps a
 minimal dependency surface so it can run in the restricted environment
-provided by the tests.
+provided by the tests.  The Google Drive must be mounted by the caller
+before invoking :func:`save_document_to_drive`.
+
 """
 
 from __future__ import annotations
@@ -48,7 +50,11 @@ def save_document_to_drive(
     if drive is None:
         raise RuntimeError("Google Colab environment is required to use Drive.")
 
-    drive.mount("/content/drive", force_remount=False)
+    # ``drive.mount`` is intentionally not called here because this function may be
+    # executed from a non-interactive Python process (e.g. ``python -m``) where the
+    # Colab helper cannot prompt for authentication.  The caller is expected to
+    # mount the drive in an interactive cell beforehand.
+
     os.makedirs(drive_dir, exist_ok=True)
 
     file_path = os.path.join(drive_dir, f"{title}.txt")
