@@ -17,8 +17,10 @@
 ## C. GitHub 저장소 클론
 1. 다음 명령을 실행하여 저장소를 클론합니다.
    ```bash
-   !git clone https://github.com/your-account/slide_explainer_app_advanced.git
-   %cd slide_explainer_app_advanced
+
+
+!git clone https://github.com/wdkq2/slide_explainer_app_advanced.git
+%cd slide_explainer_app_advanced
    ```
    > 실제 GitHub 경로로 수정하세요.
 

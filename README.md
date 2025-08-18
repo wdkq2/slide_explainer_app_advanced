@@ -70,6 +70,7 @@ python -m slide_explainer_app_advanced.main \
   --openai-key YOUR_OPENAI_API_KEY \
   --title "Advanced Fluid Mechanics Summary" \
   --drive-dir /path/to/output_dir
+
 ```
 
 Optional flags such as `--groups`, `--target-ratio`, `--model`, and `--temperature`
@@ -95,3 +96,4 @@ can be supplied as needed. Groups default to `auto` when unspecified.
   the final document.
 
 For additional details about configuring OpenAI authentication, refer to the README in the parent project folder.
+
