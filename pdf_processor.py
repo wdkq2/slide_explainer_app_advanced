@@ -85,6 +85,8 @@ def extract_page_text_with_layout(pdf_path: str, page_idx: int) -> Dict[str, obj
 
     with fitz.open(pdf_path) as doc:
         page = doc.load_page(page_idx)
+        page_height = page.rect.height
+
         raw = page.get_text("dict")
         blocks = raw.get("blocks", [])
 
@@ -102,7 +104,8 @@ def extract_page_text_with_layout(pdf_path: str, page_idx: int) -> Dict[str, obj
             y0 = line.get("bbox", [0, 0, 0, 0])[1]
             texts.append(line_text)
             # crude heuristic: top quarter of page or large font
-            if y0 < page.rect.height * 0.25 or size > 16:
+            if y0 < page_height * 0.25 or size > 16:
+
                 title_candidates.append(line_text.strip())
 
     body_text = "\n".join(texts)
