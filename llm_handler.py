@@ -22,7 +22,7 @@ def summarize_groups(
     texts: List[str],
     groups: List[List[int]],
     *,
-    model: str = "gpt-5-mini",
+    model: str = "gpt-5-mini-2025-08-07",
     temperature: float = 0.3,
 ) -> Dict[int, str]:
     """Generate summaries for pages of a PDF grouped by context.
@@ -39,7 +39,7 @@ def summarize_groups(
         using conversational context to avoid repetition.
     model : str, optional
         OpenAI model name to use for summarisation, by default
-        ``"gpt-5-mini"``.
+        ``"gpt-5-mini-2025-08-07"``.
     temperature : float, optional
         Sampling temperature for the model. Lower values make the
         output more deterministic, by default ``0.3``.
@@ -121,7 +121,7 @@ def explain_section(
     items: List[Tuple[int, str]],
     section_title: str,
     *,
-    model: str = "gpt-5-mini",
+    model: str = "gpt-5-mini-2025-08-07",
     language: str = "ko",
     max_tokens: int = 2200,
     temperature: float = 0.2,
