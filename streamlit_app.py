@@ -81,7 +81,7 @@ if generate and uploaded_pdf and api_key:
                     section.title,
                     model="gpt-5-mini",
                     language="ko",
-                    max_tokens=2200,
+                    max_completion_tokens=2200,
                     temperature=0.2,
                 )
                 pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
