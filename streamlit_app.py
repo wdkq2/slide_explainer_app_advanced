@@ -1,6 +1,13 @@
 """Streamlit interface for the slide explainer application."""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure the repository is on the Python path so package imports work
+ROOT = Path(__file__).resolve().parent
+sys.path.append(str(ROOT.parent))
+
 import os
 import re
 import tempfile
@@ -9,9 +16,12 @@ from typing import List, Tuple
 import fitz  # type: ignore
 import streamlit as st
 
-import pdf_processor
-import llm_handler
-import document_builder
+from slide_explainer_app_advanced import (
+    document_builder,
+    llm_handler,
+    pdf_processor,
+)
+
 
 
 st.title("Slide Explainer")
