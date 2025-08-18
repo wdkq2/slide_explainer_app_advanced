@@ -20,9 +20,8 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
     parser.add_argument("--mode", choices=["explain", "summarize"], default="explain")
     parser.add_argument("--lang", default="ko")
-    parser.add_argument("--min-sentences", type=int, default=5)
     parser.add_argument("--section-size-limit", type=int, default=8)
-    parser.add_argument("--model", default="gpt-4o")
+    parser.add_argument("--model", default="gpt-5-mini")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--max-tokens", type=int, default=2200)
 
@@ -104,7 +103,6 @@ def main(argv: List[str] | None = None) -> int:
                     section.title,
                     model=args.model,
                     language=args.lang,
-                    min_sentences_per_slide=args.min_sentences,
                     max_tokens=args.max_tokens,
                     temperature=args.temperature,
                 )
