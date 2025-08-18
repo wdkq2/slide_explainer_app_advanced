@@ -8,7 +8,7 @@ import os
 from typing import List, Tuple
 
 import fitz  # type: ignore
-from . import pdf_processor, llm_handler, drive_writer
+from . import pdf_processor, llm_handler, document_builder
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
@@ -16,7 +16,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--pdf", required=True, help="Path to the PDF file")
     parser.add_argument("--title", default="Slide Explanations", help="Document title")
     parser.add_argument("--openai-key", required=False, help="OpenAI API key")
-    parser.add_argument("--drive-dir", default="/content/drive/MyDrive", help="Drive directory")
+    parser.add_argument("--output-dir", default=".", help="Directory to save the result")
 
     parser.add_argument("--mode", choices=["explain", "summarize"], default="explain")
     parser.add_argument("--lang", default="ko")
@@ -127,13 +127,17 @@ def main(argv: List[str] | None = None) -> int:
         slides = [(i + 1, summaries[i]) for i in sorted(summaries.keys())]
         section_outputs.append(("Summary", slides))
 
-    # 4. Save to Drive
-    drive_writer.save_document_to_drive(
+    # 4. Save to local directory
+    document = document_builder.build_document(
         title=args.title,
         pdf_filename=os.path.basename(args.pdf),
         sections=section_outputs,
-        drive_dir=args.drive_dir,
     )
+    os.makedirs(args.output_dir, exist_ok=True)
+    output_path = os.path.join(args.output_dir, f"{args.title}.txt")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(document)
+    logging.info("Saved result to %s", output_path)
 
     return 0
 
