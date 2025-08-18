@@ -86,6 +86,7 @@ def extract_page_text_with_layout(pdf_path: str, page_idx: int) -> Dict[str, obj
     with fitz.open(pdf_path) as doc:
         page = doc.load_page(page_idx)
         page_height = page.rect.height
+
         raw = page.get_text("dict")
         blocks = raw.get("blocks", [])
 
@@ -170,6 +171,7 @@ def infer_section_title(page_meta_list: List[Dict[str, object]]) -> str:
         best, score, _ = match
         if best and score > 60:
             return best
+
     return candidates[0]
 
 
