@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 from typing import List, Tuple
 
 import fitz  # type: ignore
@@ -115,6 +116,7 @@ def main(argv: List[str] | None = None) -> int:
                     temperature=args.temperature,
                 )
                 for num, txt in llm_handler.parse_page_explanations(explanation):
+
                     slides_accum.append((num, txt))
             section_outputs.append((section.title, slides_accum))
     else:
