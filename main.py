@@ -115,8 +115,11 @@ def main(argv: List[str] | None = None) -> int:
                 )
                 import re
 
-                pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
-                for match in pattern.finditer(explanation + "\n"):
+                pattern = re.compile(
+                    r"페이지\s*(\d+)\s*:\s*(.*?)(?=\n\s*페이지\s*\d+\s*:|\Z)",
+                    re.S,
+                )
+                for match in pattern.finditer(explanation.strip() + "\n"):
                     num = int(match.group(1))
                     txt = match.group(2).strip()
                     slides_accum.append((num, txt))
