@@ -30,9 +30,12 @@ api_key = st.text_input("OpenAI API Key", type="password")
 uploaded_pdf = st.file_uploader("Upload PDF", type="pdf")
 title = st.text_input("Document Title", value="Slide Explanations")
 mode = st.selectbox("Mode", ["explain", "summarize"], index=0)
+DEBUG_LOG = ROOT / "debug_output.txt"
 
 generate = st.button("Generate")
 if generate and uploaded_pdf and api_key:
+    if DEBUG_LOG.exists():
+        DEBUG_LOG.unlink()
     os.environ["OPENAI_API_KEY"] = api_key
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(uploaded_pdf.getbuffer())
@@ -84,22 +87,20 @@ if generate and uploaded_pdf and api_key:
                     max_completion_tokens=2200,
 
                 )
+                with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                    dbg.write(f"Section: {section.title}\n")
+                    dbg.write(f"Pages: {chunk}\n")
+                    dbg.write("Raw LLM output:\n")
+                    dbg.write(explanation + "\n")
 
-                # 기존에는 "페이지 N:" 형식이 조금이라도 어긋나면 슬라이드가 모두 무시되었다.
-                # 아래 로직은 해당 패턴을 느슨하게 매칭하고, 전혀 매칭되지 않으면
-                # 문단 단위로 분할하여 페이지 순서대로 할당한다.
-                pattern = re.compile(
-                    r"페이지\s*(\d+)\s*[:：]?\s*(.*?)(?=\n\s*페이지\s*\d+\s*[:：]?|\Z)",
-                    re.S,
-                )
-                matches = list(pattern.finditer(explanation))
-
-                if matches:
-                    for match in matches:
-                        num = int(match.group(1))
-                        txt = match.group(2).strip()
-                        slides_accum.append((num, txt))
+                parsed = llm_handler.parse_page_explanations(explanation)
+                if parsed:
+                    with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                        dbg.write(f"Matched {len(parsed)} page blocks\n")
+                    slides_accum.extend(parsed)
                 else:
+                    with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                        dbg.write("No '페이지 N:' matches; using paragraph fallback\n")
                     parts = [
                         part.strip()
                         for part in re.split(r"\n{2,}", explanation)
