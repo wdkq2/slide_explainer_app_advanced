@@ -30,9 +30,12 @@ api_key = st.text_input("OpenAI API Key", type="password")
 uploaded_pdf = st.file_uploader("Upload PDF", type="pdf")
 title = st.text_input("Document Title", value="Slide Explanations")
 mode = st.selectbox("Mode", ["explain", "summarize"], index=0)
+DEBUG_LOG = ROOT / "debug_output.txt"
 
 generate = st.button("Generate")
 if generate and uploaded_pdf and api_key:
+    if DEBUG_LOG.exists():
+        DEBUG_LOG.unlink()
     os.environ["OPENAI_API_KEY"] = api_key
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(uploaded_pdf.getbuffer())
@@ -84,6 +87,11 @@ if generate and uploaded_pdf and api_key:
                     max_completion_tokens=2200,
 
                 )
+                with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                    dbg.write(f"Section: {section.title}\n")
+                    dbg.write(f"Pages: {chunk}\n")
+                    dbg.write("Raw LLM output:\n")
+                    dbg.write(explanation + "\n")
 
                 # 기존에는 "페이지 N:" 형식이 조금이라도 어긋나면 슬라이드가 모두 무시되었다.
                 # 아래 로직은 해당 패턴을 느슨하게 매칭하고, 전혀 매칭되지 않으면
@@ -95,11 +103,15 @@ if generate and uploaded_pdf and api_key:
                 matches = list(pattern.finditer(explanation))
 
                 if matches:
+                    with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                        dbg.write(f"Matched {len(matches)} page blocks\n")
                     for match in matches:
                         num = int(match.group(1))
                         txt = match.group(2).strip()
                         slides_accum.append((num, txt))
                 else:
+                    with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
+                        dbg.write("No '페이지 N:' matches; using paragraph fallback\n")
                     parts = [
                         part.strip()
                         for part in re.split(r"\n{2,}", explanation)

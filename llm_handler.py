@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, List, Tuple
+from pathlib import Path
 
 from openai import OpenAI, BadRequestError
 
@@ -230,10 +231,16 @@ def explain_section(
     for _ in range(1):
         ok = True
         for page, _ in items:
-            if not re.search(rf"^페이지 {page}:", out, re.MULTILINE):
+            if not re.search(rf"^\s*페이지\s*{page}\s*:", out, re.MULTILINE):
                 ok = False
                 break
         if ok:
             break
         out = _call()
+    debug_file = Path(__file__).resolve().parent / "debug_output.txt"
+    with debug_file.open("a", encoding="utf-8") as dbg:
+        dbg.write(f"explain_section items: {items}\n")
+        dbg.write(f"section_title: {section_title}\n")
+        dbg.write("LLM final output:\n")
+        dbg.write(out + "\n")
     return out
