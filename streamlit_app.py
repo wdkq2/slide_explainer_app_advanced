@@ -32,60 +32,33 @@ title = st.text_input("Document Title", value="Slide Explanations")
 mode = st.selectbox("Mode", ["explain", "summarize"], index=0)
 DEBUG_LOG = ROOT / "debug_output.txt"
 
+# Initialize session state for storing results
+if "document" not in st.session_state:
+    st.session_state.document = None
+if "file_name" not in st.session_state:
+    st.session_state.file_name = ""
+
 generate = st.button("Generate")
 if generate and uploaded_pdf and api_key:
     if DEBUG_LOG.exists():
         DEBUG_LOG.unlink()
     os.environ["OPENAI_API_KEY"] = api_key
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_pdf.getbuffer())
-        tmp_path = tmp.name
+    with st.spinner("슬라이드를 분석하고 있습니다... 잠시만 기다려 주세요."):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(uploaded_pdf.getbuffer())
+            tmp_path = tmp.name
 
-    page_metas: List[dict] = []
-    with fitz.open(tmp_path) as doc:  # type: ignore[name-defined]
-        for i in range(len(doc)):
-            meta = pdf_processor.extract_page_text_with_layout(tmp_path, i)
-            meta = pdf_processor.conditional_ocr_page_image(
-                tmp_path,
-                i,
-                meta,
-                dpi=400,
-                lang="kor+eng",
-                ocr_threshold=300,
-            )
-            page_metas.append(meta)
-
-    sections, duplicates = pdf_processor.segment_into_sections(
-        tmp_path,
-        page_metas,
-        api_key,
-        semantic_weight=0.4,
-        visual_weight=0.2,
-        title_weight=0.4,
-        duplicate_phash_threshold=8,
-    )
-
-    section_outputs: List[Tuple[str, List[Tuple[int, str]]]] = []
-    if mode == "explain":
-        for section in sections:
-            pages = section.pages
-            chunked = [pages[i : i + 8] for i in range(0, len(pages), 8)]
-            slides_accum: List[Tuple[int, str]] = []
-            for chunk in chunked:
-                items: List[Tuple[int, str]] = []
-                for p in chunk:
-                    text = page_metas[p].get("body_text", "")
-                    if p in duplicates:
-                        canon = duplicates[p] + 1
-                        text = f"(중복) 이 슬라이드는 페이지 {canon}과 동일합니다."
-                    items.append((p + 1, text))
-                explanation = llm_handler.explain_section(
-                    items,
-                    section.title,
-                    model="gpt-5-mini",
-                    language="ko",
-                    max_completion_tokens=2200,
-
+        page_metas: List[dict] = []
+        with fitz.open(tmp_path) as doc:  # type: ignore[name-defined]
+            for i in range(len(doc)):
+                meta = pdf_processor.extract_page_text_with_layout(tmp_path, i)
+                meta = pdf_processor.conditional_ocr_page_image(
+                    tmp_path,
+                    i,
+                    meta,
+                    dpi=400,
+                    lang="kor+eng",
+                    ocr_threshold=300,
                 )
                 with DEBUG_LOG.open("a", encoding="utf-8") as dbg:
                     dbg.write(f"Section: {section.title}\n")
@@ -130,17 +103,27 @@ if generate and uploaded_pdf and api_key:
             groups=groups,
             model="gpt-5-mini",
             # Use the model's default temperature
-        )
-        slides = [(i + 1, summaries[i]) for i in sorted(summaries.keys())]
-        section_outputs.append(("Summary", slides))
 
-    document = document_builder.build_document(
-        title=title,
-        pdf_filename=uploaded_pdf.name,
-        sections=section_outputs,
-    )
-    st.download_button("Download result", document, file_name=f"{title}.txt")
+        )
+        st.session_state.document = document
+        st.session_state.file_name = f"{title}.txt"
+
+    st.success("설명 문서 생성이 완료되었습니다!")
+    st.balloons()
 elif generate and not uploaded_pdf:
     st.error("Please upload a PDF file.")
 elif generate and not api_key:
     st.error("Please provide an OpenAI API key.")
+
+# Show preview and download option when document exists
+if st.session_state.document:
+    st.markdown("---")
+    st.subheader("🎉 생성된 문서")
+    preview_text = "\n".join(st.session_state.document.splitlines()[:15])
+    st.text_area("미리보기", preview_text + "\n...", height=200)
+    st.download_button(
+        label="📄 전체 내용 다운로드 (.txt)",
+        data=st.session_state.document,
+        file_name=st.session_state.file_name,
+        mime="text/plain",
+    )
