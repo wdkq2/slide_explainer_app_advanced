@@ -12,10 +12,36 @@ To use this module you must supply a valid OpenAI API key. See
 from __future__ import annotations
 
 import logging
+import re
 from typing import Dict, List, Tuple
 from pathlib import Path
 
 from openai import OpenAI, BadRequestError
+
+
+def parse_page_explanations(text: str) -> List[Tuple[int, str]]:
+    """Extract per-page explanations from LLM output.
+
+    The model is expected to emit lines starting with ``페이지 N:``. This
+    helper tolerates extra whitespace and multi-line content for each page.
+    """
+
+    lines = text.strip().splitlines()
+    results: List[Tuple[int, str]] = []
+    current_page: int | None = None
+    buffer: List[str] = []
+    for line in lines:
+        m = re.match(r"^\s*페이지\s*(\d+)\s*[:：]?\s*(.*)", line)
+        if m:
+            if current_page is not None:
+                results.append((current_page, "\n".join(buffer).strip()))
+            current_page = int(m.group(1))
+            buffer = [m.group(2).strip()]
+        elif current_page is not None:
+            buffer.append(line.strip())
+    if current_page is not None:
+        results.append((current_page, "\n".join(buffer).strip()))
+    return results
 
 
 def summarize_groups(
