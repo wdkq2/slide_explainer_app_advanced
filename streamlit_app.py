@@ -84,11 +84,30 @@ if generate and uploaded_pdf and api_key:
                     max_completion_tokens=2200,
 
                 )
-                pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
-                for match in pattern.finditer(explanation + "\n"):
-                    num = int(match.group(1))
-                    txt = match.group(2).strip()
-                    slides_accum.append((num, txt))
+
+                # 기존에는 "페이지 N:" 형식이 조금이라도 어긋나면 슬라이드가 모두 무시되었다.
+                # 아래 로직은 해당 패턴을 느슨하게 매칭하고, 전혀 매칭되지 않으면
+                # 문단 단위로 분할하여 페이지 순서대로 할당한다.
+                pattern = re.compile(
+                    r"페이지\s*(\d+)\s*[:：]?\s*(.*?)(?=\n\s*페이지\s*\d+\s*[:：]?|\Z)",
+                    re.S,
+                )
+                matches = list(pattern.finditer(explanation))
+
+                if matches:
+                    for match in matches:
+                        num = int(match.group(1))
+                        txt = match.group(2).strip()
+                        slides_accum.append((num, txt))
+                else:
+                    parts = [
+                        part.strip()
+                        for part in re.split(r"\n{2,}", explanation)
+                        if part.strip()
+                    ]
+                    for idx, p_num in enumerate(chunk):
+                        text = parts[idx] if idx < len(parts) else ""
+                        slides_accum.append((p_num + 1, text))
             section_outputs.append((section.title, slides_accum))
     else:
         texts = [m.get("body_text", "") for m in page_metas]
