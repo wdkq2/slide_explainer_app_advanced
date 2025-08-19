@@ -52,6 +52,7 @@ def _load_openai_key(args: argparse.Namespace) -> str:
     return key
 
 
+
 def main(argv: List[str] | None = None) -> int:
     args = parse_args(argv)
     api_key = _load_openai_key(args)
@@ -113,12 +114,7 @@ def main(argv: List[str] | None = None) -> int:
                     max_completion_tokens=args.max_completion_tokens,
                     temperature=args.temperature,
                 )
-                import re
-
-                pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
-                for match in pattern.finditer(explanation + "\n"):
-                    num = int(match.group(1))
-                    txt = match.group(2).strip()
+                for num, txt in llm_handler.parse_page_explanations(explanation):
                     slides_accum.append((num, txt))
             section_outputs.append((section.title, slides_accum))
     else:
