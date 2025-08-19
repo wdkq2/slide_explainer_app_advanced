@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 from typing import List, Tuple
 
 import fitz  # type: ignore
@@ -50,6 +51,31 @@ def _load_openai_key(args: argparse.Namespace) -> str:
         raise SystemExit("OpenAI API key required")
     os.environ["OPENAI_API_KEY"] = key
     return key
+
+
+def _parse_page_explanations(text: str) -> List[Tuple[int, str]]:
+    """Extract per-page explanations from LLM output.
+
+    The model is expected to return blocks starting with ``페이지 N:``.
+    This helper tolerates extra whitespace and multi-line content for each page.
+    """
+
+    lines = text.strip().splitlines()
+    results: List[Tuple[int, str]] = []
+    current_page: int | None = None
+    buffer: List[str] = []
+    for line in lines:
+        m = re.match(r"^\s*페이지\s*(\d+)\s*:\s*(.*)", line)
+        if m:
+            if current_page is not None:
+                results.append((current_page, "\n".join(buffer).strip()))
+            current_page = int(m.group(1))
+            buffer = [m.group(2).strip()]
+        elif current_page is not None:
+            buffer.append(line.strip())
+    if current_page is not None:
+        results.append((current_page, "\n".join(buffer).strip()))
+    return results
 
 
 def main(argv: List[str] | None = None) -> int:
@@ -113,12 +139,7 @@ def main(argv: List[str] | None = None) -> int:
                     max_completion_tokens=args.max_completion_tokens,
                     temperature=args.temperature,
                 )
-                import re
-
-                pattern = re.compile(r"페이지 (\d+):\n?(.*?)\n(?=페이지 \d+:|\Z)", re.S)
-                for match in pattern.finditer(explanation + "\n"):
-                    num = int(match.group(1))
-                    txt = match.group(2).strip()
+                for num, txt in _parse_page_explanations(explanation):
                     slides_accum.append((num, txt))
             section_outputs.append((section.title, slides_accum))
     else:

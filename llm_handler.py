@@ -230,7 +230,7 @@ def explain_section(
     for _ in range(1):
         ok = True
         for page, _ in items:
-            if not re.search(rf"^페이지 {page}:", out, re.MULTILINE):
+            if not re.search(rf"^\s*페이지\s*{page}\s*:", out, re.MULTILINE):
                 ok = False
                 break
         if ok:
