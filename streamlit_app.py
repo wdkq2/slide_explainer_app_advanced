@@ -42,8 +42,6 @@ if temperature_opt.strip():
     except ValueError:
         st.warning("Temperature must be a number. Using model default.")
 
-section_size_limit = st.number_input("Section chunk size", 1, 20, 8, 1)
-
 DEBUG_LOG = ROOT / "debug_output.txt"
 
 # Initialize session state
@@ -108,11 +106,11 @@ if generate:
                 if mode == "explain":
                     for section in sections:
                         pages = section.pages
-                        # chunk pages to stay under token limits
-                        chunks = [
-                            pages[i : i + int(section_size_limit)]
-                            for i in range(0, len(pages), int(section_size_limit))
-                        ]
+                        # chunk pages automatically based on text length
+                        chunks = pdf_processor.chunk_pages_by_text_length(
+                            pages, page_metas
+                        )
+                        _write_debug(f"Chunk sizes: {[len(c) for c in chunks]}")
                         slides_accum: List[Tuple[int, str]] = []
 
                         for chunk in chunks:

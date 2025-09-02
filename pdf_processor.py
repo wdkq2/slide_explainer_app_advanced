@@ -20,17 +20,27 @@ import numpy as np
 import PyPDF2
 import fitz  # PyMuPDF
 
-# Optional image-based features
-try:
+# Optional image/OCR features. Each dependency is handled individually so that
+# missing libraries (e.g. pdf2image or poppler) degrade gracefully rather than
+# disabling all related functionality.
+try:  # pdf -> PIL image via pdf2image
     from pdf2image import convert_from_path
-    from PIL import Image
-    import imagehash
-    import pytesseract  # requires Tesseract installed
-    _PDF2IMAGE_AVAILABLE = True
 except Exception:  # pragma: no cover
-    _PDF2IMAGE_AVAILABLE = False
+    convert_from_path = None  # type: ignore
+
+try:
+    from PIL import Image
+except Exception:  # pragma: no cover
     Image = None  # type: ignore
+
+try:
+    import imagehash
+except Exception:  # pragma: no cover
     imagehash = None  # type: ignore
+
+try:
+    import pytesseract  # requires Tesseract installed
+except Exception:  # pragma: no cover
     pytesseract = None  # type: ignore
 
 from .embedding_utils import compute_embeddings, embed_pages_text
@@ -96,6 +106,35 @@ def extract_page_text_with_layout(pdf_path: str, page_idx: int) -> Dict[str, obj
         "body_text": body_text,
     }
 
+
+def _render_page(
+    pdf_path: str, page_idx: int, *, dpi: int = 400
+) -> Optional["Image.Image"]:
+    """Render a single PDF page to a PIL image.
+
+    Tries ``pdf2image`` first (if available) and falls back to PyMuPDF's
+    rendering. Returns ``None`` if no renderer succeeds or PIL is unavailable.
+    """
+    if Image is None:
+        return None
+
+    if convert_from_path is not None:
+        try:
+            return convert_from_path(
+                pdf_path, dpi=dpi, first_page=page_idx + 1, last_page=page_idx + 1
+            )[0]
+        except Exception:  # pragma: no cover - conversion failure
+            pass
+
+    try:
+        with fitz.open(pdf_path) as doc:
+            page = doc.load_page(page_idx)
+            pix = page.get_pixmap(dpi=dpi)
+        mode = "RGB" if pix.n < 4 else "RGBA"
+        return Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+    except Exception:  # pragma: no cover - rendering failure
+        return None
+
 def conditional_ocr_page_image(
     pdf_path: str,
     page_idx: int,
@@ -108,17 +147,15 @@ def conditional_ocr_page_image(
     """Augment ``meta`` with OCR text if insufficient characters were extracted."""
     if meta.get("char_count", 0) >= ocr_threshold:
         return meta
-    if not _PDF2IMAGE_AVAILABLE:  # missing pdf2image or tesseract
+    if pytesseract is None:
         return meta
-    try:
-        image = convert_from_path(
-            pdf_path, dpi=dpi, first_page=page_idx + 1, last_page=page_idx + 1
-        )[0]
-    except Exception:  # pragma: no cover - conversion failure
+
+    image = _render_page(pdf_path, page_idx, dpi=dpi)
+    if image is None:
         return meta
 
     try:
-        ocr_text = pytesseract.image_to_string(image, lang=lang) if pytesseract else ""
+        ocr_text = pytesseract.image_to_string(image, lang=lang)
     except Exception:  # pragma: no cover - tesseract runtime failure
         ocr_text = ""
 
@@ -181,17 +218,29 @@ def segment_into_sections(
     embeddings = embed_pages_text(texts, model=embedding_model, api_key=api_key)
 
     # Optional images & perceptual hashes
-    images: Optional[List["Image.Image"]] = None
-    try:
-        if _PDF2IMAGE_AVAILABLE:
-            images = convert_from_path(pdf_path, dpi=150)
-    except Exception as exc:  # pragma: no cover
-        logging.warning("Failed to convert PDF to images: %s", exc)
+    images: List["Image.Image"] = []
+    if imagehash is not None and Image is not None:
+        if convert_from_path is not None:
+            try:
+                images = convert_from_path(pdf_path, dpi=150)
+            except Exception as exc:  # pragma: no cover
+                logging.warning("Failed to convert PDF via pdf2image: %s", exc)
 
-    if images is not None and imagehash:
+        if not images:
+            try:
+                with fitz.open(pdf_path) as doc:
+                    for i in range(len(doc)):
+                        pix = doc.load_page(i).get_pixmap(dpi=150)
+                        mode = "RGB" if pix.n < 4 else "RGBA"
+                        images.append(Image.frombytes(mode, [pix.width, pix.height], pix.samples))
+            except Exception as exc:  # pragma: no cover
+                logging.warning("Failed to render PDF via PyMuPDF: %s", exc)
+                images = []
+
+    if images and imagehash is not None:
         phashes = [_safe_phash(img) for img in images]
     else:
-        phashes = [None] * n_pages  # type: ignore
+        phashes = [None] * n_pages
 
     # Difference scores
     diff_scores: List[float] = []
@@ -254,6 +303,39 @@ def segment_into_sections(
                 duplicates[j] = i
 
     return sections, duplicates
+
+
+def chunk_pages_by_text_length(
+    pages: List[int],
+    page_metas: List[Dict[str, object]],
+    max_chars: int = 8000,
+) -> List[List[int]]:
+    """Group pages so combined text length stays within ``max_chars``.
+
+    This uses the ``char_count`` field from ``page_metas`` (falling back to the
+    length of ``body_text``) to keep each chunk under a rough character budget.
+    ``max_chars`` defaults to ~8k characters, roughly 2k tokens.
+    """
+
+    chunks: List[List[int]] = []
+    current: List[int] = []
+    total = 0
+
+    for p in pages:
+        meta = page_metas[p]
+        count = int(meta.get("char_count", len(meta.get("body_text", ""))))
+        if current and total + count > max_chars:
+            chunks.append(current)
+            current = []
+            total = 0
+        current.append(p)
+        total += count
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
 
 def _safe_phash(img: "Image.Image"):
     try:
