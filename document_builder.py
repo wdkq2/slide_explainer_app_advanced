@@ -1,3 +1,4 @@
+
 """Build the final text document for slide explanations."""
 from __future__ import annotations
 
@@ -5,7 +6,6 @@ from datetime import datetime
 from typing import Iterable, List, Tuple
 
 SectionData = Tuple[str, List[Tuple[int, str]]]
-
 
 def build_document(
     title: str,
@@ -16,14 +16,10 @@ def build_document(
 
     Parameters
     ----------
-    title:
-        Document title.
-    pdf_filename:
-        Original PDF file name to record in the document header.
-    sections:
-        Iterable of ``(section_title, [(page_number, text), ...])``.
+    title: Document title.
+    pdf_filename: Original PDF file name to record in the document header.
+    sections: Iterable of ``(section_title, [(page_number, text), ...])``.
     """
-
     now = datetime.now().strftime("%Y-%m-%d")
 
     toc_lines: List[str] = ["섹션 목차:"]

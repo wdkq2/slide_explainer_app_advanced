@@ -1,19 +1,13 @@
-"""Utilities for computing embeddings via the OpenAI API.
 
-This module wraps calls to the OpenAI embedding endpoint and exposes
-helpers that return NumPy arrays for reuse across the application.
-"""
-
+"""Utilities for computing embeddings via the OpenAI API."""
 from __future__ import annotations
 
 import logging
 import os
-from typing import List
+from typing import List, Iterable
 
 import numpy as np
 from openai import OpenAI
-from typing import Iterable
-
 
 def compute_embeddings(
     texts: List[str],
@@ -24,28 +18,24 @@ def compute_embeddings(
 ) -> np.ndarray:
     """Compute embeddings for a list of texts using the OpenAI API."""
     client = OpenAI(api_key=api_key)
-
     embeddings: List[List[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
         try:
             response = client.embeddings.create(model=model, input=batch)
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - network errors
             logging.error(
-                "Error calling OpenAI Embedding API for batch starting at %s: %s", i, exc
+                "Error calling OpenAI Embedding API for batch starting at %s: %s",
+                i, exc,
             )
-            # In case of failure, fill with zeros of appropriate dimension
-            if embeddings:
-                dim = len(embeddings[0])
-            else:
-                dim = 1536  # default dimension for most embedding models
+            # fallback: fill with zeros
+            dim = len(embeddings[0]) if embeddings else 1536
             embeddings.extend([[0.0] * dim for _ in batch])
             continue
         sorted_items = sorted(response.data, key=lambda x: x.index)
         for item in sorted_items:
             embeddings.append(list(item.embedding))
     return np.array(embeddings)
-
 
 def embed_texts(
     texts: List[str],
@@ -60,7 +50,6 @@ def embed_texts(
         raise RuntimeError("OPENAI_API_KEY environment variable is not set")
     return compute_embeddings(texts, api_key=key, model=model, batch_size=batch_size)
 
-
 def embed_pages_text(
     pages_text: Iterable[str],
     *,
@@ -69,29 +58,12 @@ def embed_pages_text(
     batch_size: int = 32,
     max_retries: int = 3,
 ) -> np.ndarray:
-    """Embed a sequence of page texts with basic retry logic.
-
-    Parameters
-    ----------
-    pages_text:
-        Iterable of strings, one per page.
-    model:
-        Embedding model name.
-    api_key:
-        Optional API key; falls back to ``OPENAI_API_KEY`` env var.
-    batch_size:
-        Number of items per API request.
-    max_retries:
-        Number of times to retry a failed request.
-    """
-
+    """Embed a sequence of page texts with basic retry logic."""
     key = api_key or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY environment variable is not set")
-
     texts = list(pages_text)
     logging.info("Embedding %d pages; this may incur API costs", len(texts))
-
     client = OpenAI(api_key=key)
     vectors: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
@@ -104,7 +76,7 @@ def embed_pages_text(
                 for item in sorted_items:
                     vectors.append(list(item.embedding))
                 break
-            except Exception as exc:  # pragma: no cover - network errors
+            except Exception as exc:  # pragma: no cover
                 attempt += 1
                 logging.warning("Embedding batch starting %s failed: %s", i, exc)
                 if attempt >= max_retries:
@@ -112,7 +84,6 @@ def embed_pages_text(
                     vectors.extend([[0.0] * dim for _ in batch])
                     break
     return np.array(vectors)
-
 
 def cosine_similarity_matrix(embeddings: np.ndarray) -> np.ndarray:
     """Return a cosine similarity matrix for the given embeddings."""
