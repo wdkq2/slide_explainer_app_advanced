@@ -304,6 +304,39 @@ def segment_into_sections(
 
     return sections, duplicates
 
+
+def chunk_pages_by_text_length(
+    pages: List[int],
+    page_metas: List[Dict[str, object]],
+    max_chars: int = 8000,
+) -> List[List[int]]:
+    """Group pages so combined text length stays within ``max_chars``.
+
+    This uses the ``char_count`` field from ``page_metas`` (falling back to the
+    length of ``body_text``) to keep each chunk under a rough character budget.
+    ``max_chars`` defaults to ~8k characters, roughly 2k tokens.
+    """
+
+    chunks: List[List[int]] = []
+    current: List[int] = []
+    total = 0
+
+    for p in pages:
+        meta = page_metas[p]
+        count = int(meta.get("char_count", len(meta.get("body_text", ""))))
+        if current and total + count > max_chars:
+            chunks.append(current)
+            current = []
+            total = 0
+        current.append(p)
+        total += count
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+
 def _safe_phash(img: "Image.Image"):
     try:
         return imagehash.phash(img.convert("RGB"))  # type: ignore

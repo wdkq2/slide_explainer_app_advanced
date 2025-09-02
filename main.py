@@ -21,7 +21,6 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
     parser.add_argument("--mode", choices=["explain", "summarize"], default="explain")
     parser.add_argument("--lang", default="ko")
-    parser.add_argument("--section-size-limit", type=int, default=8)
     parser.add_argument("--model", default="gpt-5-mini")
     parser.add_argument("--temperature", type=float, default=None)
 
@@ -94,10 +93,8 @@ def main(argv: List[str] | None = None) -> int:
     if args.mode == "explain":
         for section in sections:
             pages = section.pages
-            chunked = [
-                pages[i : i + args.section_size_limit]
-                for i in range(0, len(pages), args.section_size_limit)
-            ]
+            chunked = pdf_processor.chunk_pages_by_text_length(pages, page_metas)
+            logging.info("Chunk sizes: %s", [len(c) for c in chunked])
             slides_accum: List[Tuple[int, str]] = []
             for chunk in chunked:
                 items: List[Tuple[int, str]] = []
